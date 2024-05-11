@@ -1,3 +1,5 @@
+import os
+
 import secrets
 from base64 import urlsafe_b64encode as b64e, urlsafe_b64decode as b64d
 
@@ -34,19 +36,35 @@ def password_decrypt(token: bytes, password: str) -> bytes:
   key = _derive_key(password.encode(), salt, iterations)
   return Fernet(key).decrypt(token)
 
-passwordFile = open("Passwords.txt","r+")
+def viewPasswords(masterPass: str):
+  passwords = open("Passwords.txt", "r")
+  passwordsArr = passwords.readlines()
+  print("Passwords List:")
+  for i in passwordsArr:
+    webPass = i.split(":")
+    print(f"{webPass[0]}: {password_decrypt(webPass[1].encode(), masterPass).decode()}")
+
+def addPassword(masterPass: str):
+  website = input("Please input the website that the password belongs to: ")
+  newPassword = input("Please input the new password: ")
+  encryptedPassword = password_encrypt(newPassword.encode(), masterPass)
+  if os.stat("Passwords.txt").st_size == 0:
+    newString = f'{website}:{encryptedPassword.decode()}'
+  else:
+    newString = f'\n{website}:{encryptedPassword.decode()}'
+  passwords = open("Passwords.txt", "a")
+  passwords.write(newString)
+  passwords.close()
+
 
 masterPass = input("Please enter your master password: ")
 userChoice = input("Password Manager Menu\n1 - View passwords\n2 - Add new password\n3 - Generate new password\n4 - Re-enter master password (if you made a misinput)\nQ - End program\nYour input: ")
 
 while userChoice.lower() != 'q':
   if userChoice == '1':
-    decodedPass = password_decrypt(passwordFile.read(), masterPass).decode()
-    print(decodedPass)
+    viewPasswords(masterPass)
   elif userChoice == '2':
-    newPass = input('Input passsword: ')
-    encryptedPass = password_encrypt(newPass.encode(), masterPass).decode()
-    passwordFile.write(encryptedPass)
+    addPassword(masterPass)
   elif userChoice == '3':
     print('12gdrg54536435')
   elif userChoice == '4':
