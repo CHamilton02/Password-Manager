@@ -9,24 +9,6 @@ from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 backend = default_backend()
 iterations = 100_000
 
-password = input("Please enter your master password: ")
-userChoice = input("Password Manager Menu\n1 - View passwords\n2 - Add new password\n3 - Generate new password\n4 - Re-enter master password (if you made a misinput)\nQ - End program\nYour input: ")
-
-while userChoice.lower() != 'q':
-  if userChoice == '1':
-    print('Passwords!!!')
-  elif userChoice == '2':
-    print('New password!')
-  elif userChoice == '3':
-    print('12gdrg54536435')
-  elif userChoice == '4':
-    print('You misclicked lollll')
-  else:
-    print('Misinput. Try again!')
-  userChoice = input("Password Manager Menu\n1 - View passwords\n2 - Add new password\n3 - Generate new password\n4 - Re-enter master password (if you made a misinput)\nAny other key - End program\nYour input: ")
-
-print('Thank you for using Password Manager. Good bye!')
-
 def _derive_key(password: bytes, salt: bytes, iterations: int = iterations) -> bytes:
   # Derive a secret key from a given password and salt
   kdf = PBKDF2HMAC(
@@ -37,10 +19,40 @@ def _derive_key(password: bytes, salt: bytes, iterations: int = iterations) -> b
 def password_encrypt(message: bytes, password: str, iterations: int = iterations) -> bytes:
   salt = secrets.token_bytes(16)
   key = _derive_key(password.encode(), salt, iterations)
-  return b64(
+  return b64e(
     b'%b%b%b' % (
       salt,
       iterations.to_bytes(4, 'big'),
       b64d(Fernet(key).encrypt(message)),
     )
   )
+
+def password_decrypt(token: bytes, password: str) -> bytes:
+  decoded = b64d(token)
+  salt, iter, token = decoded[:16], decoded[16:20], b64e(decoded[20:])
+  iterations = int.from_bytes(iter, 'big')
+  key = _derive_key(password.encode(), salt, iterations)
+  return Fernet(key).decrypt(token)
+
+passwordFile = open("Passwords.txt","r+")
+
+masterPass = input("Please enter your master password: ")
+userChoice = input("Password Manager Menu\n1 - View passwords\n2 - Add new password\n3 - Generate new password\n4 - Re-enter master password (if you made a misinput)\nQ - End program\nYour input: ")
+
+while userChoice.lower() != 'q':
+  if userChoice == '1':
+    decodedPass = password_decrypt(passwordFile.read(), masterPass).decode()
+    print(decodedPass)
+  elif userChoice == '2':
+    newPass = input('Input passsword: ')
+    encryptedPass = password_encrypt(newPass.encode(), masterPass).decode()
+    passwordFile.write(encryptedPass)
+  elif userChoice == '3':
+    print('12gdrg54536435')
+  elif userChoice == '4':
+    print('You misclicked lollll')
+  else:
+    print('Misinput. Try again!')
+  userChoice = input("\nPassword Manager Menu\n1 - View passwords\n2 - Add new password\n3 - Generate new password\n4 - Re-enter master password (if you made a misinput)\nAny other key - End program\nYour input: ")
+
+print('Thank you for using Password Manager. Good bye!')
