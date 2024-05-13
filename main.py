@@ -1,16 +1,31 @@
 import os
-
 import secrets
+import random
+import tkinter
+import string
 from base64 import urlsafe_b64encode as b64e, urlsafe_b64decode as b64d
-
 from cryptography.fernet import Fernet, InvalidToken
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
-import random
+def main():
+  window = tkinter.Tk()
+  window.title('Master Password')
+  title = tkinter.Label(window, text='Password Manager', font=('Arial', 18, 'bold'), fg='orange')
+  title.pack()
+  frame = tkinter.Frame(window)
+  frame.pack()
+  label = tkinter.Label(frame, text='Master Password: ', font=('Arial', 14), fg='orange')
+  label.grid(row=0, column=0)
+  masterPassVar = tkinter.StringVar()
+  entry = tkinter.Entry(frame, textvariable = masterPassVar)
+  entry.grid(row=0, column=1)
+  button = tkinter.Button(frame, text='Submit', font=('Arial', 10), bg='orange', fg='white', command=lambda: mainDisplay(masterPassVar.get(), window))
+  button.grid(row=0, column=2, padx=10)
+  window.minsize(600, 100)
+  window.mainloop()
 
-import string
 
 backend = default_backend()
 iterations = 100_000
@@ -48,15 +63,42 @@ def password_decrypt(token: bytes, password: str) -> bytes:
 def viewPasswords(masterPass: str):
   passwords = open("Passwords.txt", "r")
   passwordsArr = passwords.readlines()
-  print("Passwords List:")
+  passwordList = ""
   for i in passwordsArr:
     webPass = i.split(":")
-    print(f"{webPass[0]}: {password_decrypt(webPass[1].encode(), masterPass).decode()}")
+    if password_decrypt(webPass[1].encode(), masterPass) == b'':
+      break
+    passwordList += f"{webPass[0]}: {password_decrypt(webPass[1].encode(), masterPass).decode()}\n"
+  viewPasswords = tkinter.Tk()
+  if len(passwordList) == 0:
+    passwordList = "Error: Wrong master password entered or no passwords currently exist."
+  header = tkinter.Label(viewPasswords, text="Passwords List:", font=('Arial', 14), bg='orange',fg='white')
+  header.pack()
+  message = tkinter.Label(viewPasswords, text=passwordList, font=('Arial', 14), fg='orange')
+  message.pack()
+  viewPasswords.mainloop()
 
-def addPassword(masterPass: str):
-  website = input("Please input the website that the password belongs to: ")
-  newPassword = input("Please input the new password: ")
-  encryptedPassword = password_encrypt(newPassword.encode(), masterPass)
+def requestPassword(masterPass: str):
+  addPassWindow = tkinter.Tk()
+  addPassWindow.title('Add Password')
+  frame = tkinter.Frame(addPassWindow)
+  frame.pack()
+  label = tkinter.Label(frame, text='Input website: ', font=('Arial', 14), fg='orange')
+  label.grid(row=0, column=0, sticky='w')
+  websiteEntry = tkinter.Entry(frame)
+  websiteEntry.grid(row=0, column=1)
+  label = tkinter.Label(frame, text='Input password: ', font=('Arial', 14), fg='orange')
+  label.grid(row=1, column=0, sticky='w')
+  passwordEntry = tkinter.Entry(frame)
+  passwordEntry.grid(row=1, column=1)
+  submit = tkinter.Button(addPassWindow, text='Submit', height=1, width=10, font=('Arial', 14), bg='orange', fg='white', command=lambda: addPassword(addPassWindow, websiteEntry.get(), passwordEntry.get(), masterPass))
+  submit.pack()
+  addPassWindow.minsize(300, 100)
+  addPassWindow.mainloop()
+
+def addPassword(window, website, password, masterPass):
+  window.destroy()
+  encryptedPassword = password_encrypt(password.encode(), masterPass)
   if os.stat("Passwords.txt").st_size == 0:
     newString = f'{website}:{encryptedPassword.decode()}'
   else:
@@ -64,6 +106,12 @@ def addPassword(masterPass: str):
   passwords = open("Passwords.txt", "a")
   passwords.write(newString)
   passwords.close()
+  successMessage = tkinter.Tk()
+  successMessage.title('Success!')
+  label = tkinter.Label(successMessage, text=f'{website}: {password} added to the list.', font=('Arial', 14), fg='orange')
+  label.pack()
+  successMessage.minsize(500, 50)
+  successMessage.mainloop()
 
 def createPassword(chars: list, passSize: int) -> str:
   newPass = ""
@@ -72,18 +120,43 @@ def createPassword(chars: list, passSize: int) -> str:
     newPass += chars[value]
   return newPass
 
-def generatePassword(masterPass: str):
-  website = input("Please input the website that the password belongs to: ")
-  passType = input("What type of password do you want?\n1 - Only upper and lower case letters (NOT RECOMMENDED)\n2 - Alphanumeric characters (Aa1)\n3 - Alphanumeric + special characters (Aa1^)\nYour input: ")
-  passSize = int(input("How big do you want your password to be? Choice: "))
-  if passType == "1":
+def requestNewPassCriteria(masterPass: str):
+  upperLower = tkinter.IntVar()
+  alphaNumer = tkinter.IntVar()
+  alphaSpec = tkinter.IntVar()
+  genPassWindow = tkinter.Tk()
+  genPassWindow.title('Generate Password')
+  frame = tkinter.Frame(genPassWindow)
+  frame.pack()
+  label = tkinter.Label(frame, text='Input website: ', font=('Arial', 14), fg='orange')
+  label.grid(row=0, column=0)
+  websiteEntry = tkinter.Entry(frame)
+  websiteEntry.grid(row=0, column=1)
+  label = tkinter.Label(frame, text='Type of password:', font=('Arial', 14), fg='orange')
+  label.grid(row=1, column=0)
+  for (title, location, var) in (('Only upper and lower case letters (NOT RECOMMENDED)', 2, upperLower), ('Alphanumeric characters (Aa1)', 3, alphaNumer), ('Alphanumeric + special characters (Aa1^)', 4, alphaSpec)):
+    check = tkinter.Checkbutton(frame, text=title, variable=var)
+    check.grid(row=location, column=0, sticky='w')
+  label = tkinter.Label(frame, text='Password character size: ', font=('Arial', 14), fg='orange')
+  label.grid(row=5, column=0)
+  sizeEntry = tkinter.Entry(frame)
+  sizeEntry.grid(row=5, column=1)
+  submit = tkinter.Button(genPassWindow, text='Submit', height=2, width=22, font=('Arial', 14), bg='orange', fg='white', command=lambda: generatePassword(genPassWindow, websiteEntry.get(), upperLower, alphaNumer, alphaSpec, sizeEntry.get(), masterPass))
+  submit.pack()
+  genPassWindow.minsize(500, 250)
+  genPassWindow.mainloop()
+  
+
+def generatePassword(window, website, upperLower, alphaNumer, alphaSpec, size, masterPass):
+  window.destroy()
+  if upperLower:
     possChars = list(string.ascii_letters)
-  elif passType == "2":
+  elif alphaNumer:
     possChars = list(string.ascii_letters + string.digits)
-  elif passType == "3":
+  elif alphaSpec:
     specChars = "!@#$%^&*()_+-=[]{}|;:',.<>?/~`"
     possChars = list(string.ascii_letters + string.digits + specChars)
-  newPassword = createPassword(possChars, passSize)
+  newPassword = createPassword(possChars, int(size))
   encryptedPassword = password_encrypt(newPassword.encode(), masterPass)
   if os.stat("Passwords.txt").st_size == 0:
     newString = f'{website}:{encryptedPassword.decode()}'
@@ -92,28 +165,36 @@ def generatePassword(masterPass: str):
   passwords = open("Passwords.txt", "a")
   passwords.write(newString)
   passwords.close()
-  print(f"New password added: {website}: {newPassword}")
+  successMessage = tkinter.Tk()
+  successMessage.title('Success!')
+  label = tkinter.Label(successMessage, text=f'{website}: {newPassword} added to the list.', font=('Arial', 14), fg='orange')
+  label.pack()
+  successMessage.minsize(500, 50)
+  successMessage.mainloop()
 
+def updateMasterPassword(oldWindow) -> str:
+  oldWindow.destroy()
+  main()
 
-def updateMasterPassword() -> str:
-  updatedPass = input("Please input your actual master password: ")
-  return updatedPass
+def mainDisplay(masterPass, oldWindow):
+  oldWindow.destroy()
+  window = tkinter.Tk()
+  window.title('Password Manager')
+  title = tkinter.Label(window, text='Password Manager', font=('Arial', 18, 'bold'), fg='orange')
+  title.pack()
+  frame = tkinter.Frame(window)
+  frame.pack()
+  option1 = tkinter.Button(frame, text="View Passwords", height=2, width=22, font=('Arial', 14), bg='orange', fg='white', command=lambda: viewPasswords(masterPass))
+  option1.grid(row=0, column=0, padx=10, pady=10)
+  option2 = tkinter.Button(frame, text="Add New Password", height=2, width=22, font=('Arial', 14), bg='orange', fg='white', command=lambda: requestPassword(masterPass))
+  option2.grid(row=1, column=0)
+  option3 = tkinter.Button(frame, text="Generate New Password", height=2, width=22, font=('Arial', 14), bg='orange', fg='white', command=lambda: requestNewPassCriteria(masterPass))
+  option3.grid(row=0, column=1)
+  option4 = tkinter.Button(frame, text="Re-enter Master Password", height=2, width=22, font=('Arial', 14), bg='orange', fg='white', command=lambda: updateMasterPassword(window))
+  option4.grid(row=1, column=1)
 
+  window.minsize(600, 300)
+  window.mainloop()
 
-masterPass = input("Please enter your master password: ")
-userChoice = input("Password Manager Menu\n1 - View passwords\n2 - Add new password\n3 - Generate new password\n4 - Re-enter master password (if you made a misinput)\nQ - End program\nYour input: ")
-
-while userChoice.lower() != 'q':
-  if userChoice == '1':
-    viewPasswords(masterPass)
-  elif userChoice == '2':
-    addPassword(masterPass)
-  elif userChoice == '3':
-    generatePassword(masterPass)
-  elif userChoice == '4':
-    masterPass = updateMasterPassword()
-  else:
-    print('Misinput. Try again!')
-  userChoice = input("\nPassword Manager Menu\n1 - View passwords\n2 - Add new password\n3 - Generate new password\n4 - Re-enter master password (if you made a misinput)\nAny other key - End program\nYour input: ")
-
-print('Thank you for using Password Manager. Good bye!')
+if __name__ == "__main__":
+  main()
