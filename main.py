@@ -97,20 +97,29 @@ def requestPassword(masterPass: str):
 
 def addPassword(window, website, password, masterPass):
   window.destroy()
-  encryptedPassword = password_encrypt(password.encode(), masterPass)
-  if os.stat("Passwords.txt").st_size == 0:
-    newString = f'{website}:{encryptedPassword.decode()}'
+  if len(website.strip()) == 0 or len(password.strip()) == 0:
+    failureMessage = tkinter.Tk()
+    failureMessage.title('Failure!')
+    label = tkinter.Label(failureMessage, text='Failed to add password. Please enter valid one. [Error: missing website and/or password]', font=('Arial', 14), fg='red')
+    label.pack()
+    requestPassword(masterPass)
+    failureMessage.minsize(500, 50)
+    failureMessage.mainloop()
   else:
-    newString = f'\n{website}:{encryptedPassword.decode()}'
-  passwords = open("Passwords.txt", "a")
-  passwords.write(newString)
-  passwords.close()
-  successMessage = tkinter.Tk()
-  successMessage.title('Success!')
-  label = tkinter.Label(successMessage, text=f'{website}: {password} added to the list.', font=('Arial', 14), fg='orange')
-  label.pack()
-  successMessage.minsize(500, 50)
-  successMessage.mainloop()
+    encryptedPassword = password_encrypt(password.encode(), masterPass)
+    if os.stat("Passwords.txt").st_size == 0:
+      newString = f'{website}:{encryptedPassword.decode()}'
+    else:
+      newString = f'\n{website}:{encryptedPassword.decode()}'
+    passwords = open("Passwords.txt", "a")
+    passwords.write(newString)
+    passwords.close()
+    successMessage = tkinter.Tk()
+    successMessage.title('Success!')
+    label = tkinter.Label(successMessage, text=f'{website}: {password} added to the list.', font=('Arial', 14), fg='orange')
+    label.pack()
+    successMessage.minsize(500, 50)
+    successMessage.mainloop()
 
 def createPassword(chars: list, passSize: int) -> str:
   newPass = ""
